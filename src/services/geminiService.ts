@@ -8,19 +8,19 @@ const ai = new GoogleGenAI({
 
 export class GeminiService {
   static async chat(message: string, history: { role: string; parts: string }[] = [], imageBase64?: string, mood?: MoodType) {
-    const modelName = "gemini-3-flash-preview"; 
+    // Switching to 3.1 Flash Lite for better free-tier resilience and speed
+    const modelName = "gemini-3.1-flash-lite-preview"; 
     
     try {
       const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error("Llave maestra no encontrada. Por favor revisa la configuración de API Keys.");
+        throw new Error("Llave maestra no encontrada.");
       }
 
       const moodContext = mood ? `[ESTADO DEL RADAR: ${mood.toUpperCase()}] ` : "";
       
       const contents: any[] = [];
       
-      // Enforce correct sequence for multi-turn chat
       history.forEach(h => {
         if (h.parts && h.parts.trim()) {
           contents.push({
@@ -30,7 +30,6 @@ export class GeminiService {
         }
       });
 
-      // Prepare current message parts
       const currentParts: any[] = [{ text: moodContext + message }];
       if (imageBase64) {
         currentParts.push({
@@ -63,7 +62,11 @@ export class GeminiService {
     } catch (error: any) {
       console.error("Error Nora Chat:", error);
       
-      // Attempt zero-history fallback
+      const errorMsg = error?.message || "";
+      if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
+        return "Ay, mi Karin... acabo de gastar muchas millas corriendo para atenderte y me quedé un poquito sin aire. ✨ Dame un minutito para recuperar el aliento y vuelve a escribirme, ¡aquí sigo contigo! 🧘‍♀️";
+      }
+
       try {
         const fallback = await ai.models.generateContent({
           model: modelName,
@@ -72,11 +75,10 @@ export class GeminiService {
         });
         return fallback.text || "Ay Karin, me perdí un segundo... ¿qué me decías? ✨";
       } catch (innerError: any) {
-        const errorMsg = error?.message || "Error desconocido";
         if (errorMsg.includes("API_KEY_INVALID")) {
-          return "Ay, mi Karin... parece que mi llave de acceso no es válida. ¿Podrías revisar las API Keys en el menú de configuración? ✨";
+          return "Ay, mi Karin... parece que mi llave de acceso no es válida. ✨";
         }
-        return `Ay, mi cielo, parece que hay un poquito de interferencia en la señal (${errorMsg})... ¿me lo puedes repetir? Estoy atenta. ✨`;
+        return `Ay, mi cielo, parece que hay un poquito de interferencia en la señal... ¿me lo puedes repetir? Estoy atenta. ✨`;
       }
     }
   }
