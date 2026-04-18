@@ -56,9 +56,16 @@ export function Chat({ currentMood }: ChatProps) {
     return unsubscribe;
   }, [user]);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, optimisticMessage, isTyping]);
+
   const scrollToBottom = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -201,7 +208,7 @@ export function Chat({ currentMood }: ChatProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[60vh] overflow-hidden bg-brand-cream/50 relative">
+    <div className="flex-1 flex flex-col min-h-0 bg-brand-cream/50 relative">
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-5 py-4 space-y-3 custom-scrollbar"

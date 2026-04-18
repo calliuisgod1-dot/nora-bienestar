@@ -30,21 +30,18 @@ export function Checklist({ onAllCompleted }: ChecklistProps) {
   React.useEffect(() => {
     if (!user) return;
 
-    // Filter tasks by today's date to avoid interference from past days
     const today = new Date().toISOString().split('T')[0];
-    const q = query(
-      collection(db, 'users', user.uid, 'tasks')
-    );
+    const q = query(collection(db, 'users', user.uid, 'tasks'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const taskList: Task[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Manual filter for today for simplicity/reliability
         if (data.date === today) {
           taskList.push({ id: doc.id, ...data } as Task);
         }
       });
+      
       setTasks(taskList);
       
       const allDone = taskList.length > 0 && taskList.every(t => t.completed);
@@ -54,10 +51,11 @@ export function Checklist({ onAllCompleted }: ChecklistProps) {
           hasInitializedRef.current = true;
           completionHandledRef.current = true;
           setIsAllCompleted(true);
+          setIsCollapsed(true); // Auto-collapse on load if already done
         } else if (!completionHandledRef.current) {
-          // Double check to be absolutely sure before firing
           completionHandledRef.current = true;
           setIsAllCompleted(true);
+          setIsCollapsed(true); // Auto-collapse to give space to Nora
           
           fireConfetti({
             particleCount: 150,
@@ -66,7 +64,6 @@ export function Checklist({ onAllCompleted }: ChecklistProps) {
             colors: ['#FCE4EC', '#FFAB91', '#FDEEF4']
           });
           
-          // Use a small delay to ensure the UI has settled if needed
           onAllCompleted();
         }
       } else {

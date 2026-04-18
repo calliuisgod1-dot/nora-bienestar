@@ -163,16 +163,21 @@ function MainLayout() {
     
     isHandlingCompletion.current = true;
     
+    // Tiny delay to allow the Checklist component to finish its collapse animation
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Get the current tasks to include them in the prompt
     const today = new Date().toISOString().split('T')[0];
-    const tasksQuery = query(collection(db, 'users', user.uid, 'tasks'));
+    const tasksQuery = query(
+      collection(db, 'users', user.uid, 'tasks')
+    );
     const tasksSnapshot = await getDocs(tasksQuery).catch(e => handleFirestoreError(e, 'list', `users/${user.uid}/tasks`));
     
-    // Filter tasks for today manually for extra safety
+    // Filter tasks for today
     const todayTasks = tasksSnapshot 
       ? tasksSnapshot.docs
           .map(doc => doc.data())
-          .filter(t => t.date === today)
+          .filter(t => t.date === today && t.completed)
           .map(t => t.text)
           .join(', ')
       : '';
@@ -247,10 +252,12 @@ function MainLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <MoodRadar currentMood={currentMood} onMoodChange={setCurrentMood} />
-        <Checklist onAllCompleted={handleAllCompleted} />
-        <Chat currentMood={currentMood} />
+        <div className="flex flex-col flex-1 min-h-0">
+          <Checklist onAllCompleted={handleAllCompleted} />
+          <Chat currentMood={currentMood} />
+        </div>
       </main>
 
       {/* Settings Panel */}
