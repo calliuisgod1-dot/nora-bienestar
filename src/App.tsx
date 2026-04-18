@@ -7,11 +7,11 @@ import { Checklist } from './components/Checklist';
 import { MoodRadar } from './components/MoodRadar';
 import { BreathingExercise } from './components/BreathingExercise';
 import { BrilliantMomentsAlbum } from './components/BrilliantMomentsAlbum';
-import { MoodType } from './types';
+import { MoodType, Task } from './types';
 import { GeminiService } from './services/geminiService';
 import { db, handleFirestoreError } from './lib/firebase';
 import { cn, urlBase64ToUint8Array } from './lib/utils';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDocs, query, writeBatch, onSnapshot } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 
 import { speak, getAvailableVoices } from './lib/audio';
@@ -157,83 +157,84 @@ function MainLayout() {
   };
 
   const isHandlingCompletion = useRef(false);
+  const currentMoodRef = useRef(currentMood);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const handleAllCompleted = useCallback(async () => {
-    if (!user || isHandlingCompletion.current) return;
+  useEffect(() => {
+    currentMoodRef.current = currentMood;
+  }, [currentMood]);
+
+  // Centralized Task Listener to prevent multiple triggers
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(collection(db, 'users', user.uid, 'tasks'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const taskList: any[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.date === today) {
+          taskList.push({ id: doc.id, ...data });
+        }
+      });
+      setTasks(taskList);
+    }, (error) => {
+      handleFirestoreError(error, 'list', `users/${user.uid}/tasks`);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleAllCompleted = useCallback(async (completedTasksNames: string) => {
+    if (!user || isHandlingCompletion.current || !completedTasksNames) return;
     
     isHandlingCompletion.current = true;
     
-    // Tiny delay to allow the Checklist component to finish its collapse animation
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // tiny delay
+    await new Promise(resolve => setTimeout(resolve, 800));
     
-    // Get the current tasks to include them in the prompt
-    const today = new Date().toISOString().split('T')[0];
-    const tasksQuery = query(
-      collection(db, 'users', user.uid, 'tasks')
-    );
-    const tasksSnapshot = await getDocs(tasksQuery).catch(e => handleFirestoreError(e, 'list', `users/${user.uid}/tasks`));
-    
-    // Filter tasks for today
-    const todayTasks = tasksSnapshot 
-      ? tasksSnapshot.docs
-          .map(doc => doc.data())
-          .filter(t => t.date === today && t.completed)
-          .map(t => t.text)
-          .join(', ')
-      : '';
-
-    if (!todayTasks) {
-      isHandlingCompletion.current = false;
-      return;
-    }
-
     const messagePath = `users/${user.uid}/messages`;
     
     try {
-      // Trigger local user message for immediate feedback
       await addDoc(collection(db, 'users', user.uid, 'messages'), {
         uid: user.uid,
         userId: user.uid,
         text: "¡He completado todo mi checklist de hoy! ✨",
         sender: 'user',
         timestamp: serverTimestamp()
-      }).catch(e => handleFirestoreError(e, 'create', messagePath));
+      });
 
-      // Automatic signal to Nora
-      const prompt = `¡Pana! He completado todas mis escalas técnicas de hoy: ${todayTasks}. Me siento realizada. Dame ese cierre de bitácora especial con tu estilo, mencionando lo que logré.`;
-      const noraResponse = await GeminiService.chat(prompt, [], undefined, currentMood || undefined);
+      const prompt = `¡Pana! He completado todas mis escalas técnicas de hoy: ${completedTasksNames}. Dame ese cierre de bitácora especial con tu estilo.`;
+      const noraResponse = await GeminiService.chat(prompt, [], undefined, currentMoodRef.current || undefined);
       
-      // Extract and save "Milla Ganada" if present
       const millaMatch = noraResponse.match(/\[MILLA_GANADA:\s*"(.*?)"\]/);
-      if (millaMatch && millaMatch[1]) {
-        const momentText = millaMatch[1];
+      if (millaMatch?.[1]) {
         await addDoc(collection(db, 'users', user.uid, 'moments'), {
           userId: user.uid,
-          text: momentText,
+          text: millaMatch[1],
           timestamp: serverTimestamp(),
           category: 'achievement'
-        }).catch(e => console.error("Error saving brilliant moment:", e));
+        });
       }
 
       const cleanResponse = noraResponse.replace(/\[MILLA_GANADA:\s*".*?"\]/, '').trim();
-
       await addDoc(collection(db, 'users', user.uid, 'messages'), {
         uid: user.uid,
         userId: user.uid,
         text: cleanResponse,
         sender: 'nora',
         timestamp: serverTimestamp()
-      }).catch(e => handleFirestoreError(e, 'create', messagePath));
+      });
 
     } catch (error) {
-      console.error("Error generating closing bitácora:", error);
+      console.error("Completion error:", error);
     } finally {
-      // Small cooldown before allowing another completion trigger
       setTimeout(() => {
         isHandlingCompletion.current = false;
-      }, 5000);
+      }, 10000); // 10s cooldown
     }
-  }, [user, currentMood]);
+  }, [user]);
 
   return (
     <div className="w-[380px] h-[720px] bg-brand-cream rounded-xxl shadow-2xl overflow-hidden relative app-border flex flex-col">
@@ -255,7 +256,10 @@ function MainLayout() {
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <MoodRadar currentMood={currentMood} onMoodChange={setCurrentMood} />
         <div className="flex flex-col flex-1 min-h-0">
-          <Checklist onAllCompleted={handleAllCompleted} />
+          <Checklist 
+            tasks={tasks} 
+            onAllCompleted={(names) => handleAllCompleted(names)} 
+          />
           <Chat currentMood={currentMood} />
         </div>
       </main>

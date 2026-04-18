@@ -15,68 +15,49 @@ const fireConfetti = confetti.create(undefined, {
 });
 
 interface ChecklistProps {
-  onAllCompleted: () => void;
+  tasks: Task[];
+  onAllCompleted: (completedTasksNames: string) => void;
 }
 
-export function Checklist({ onAllCompleted }: ChecklistProps) {
+export function Checklist({ tasks, onAllCompleted }: ChecklistProps) {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskText, setNewTaskText] = useState('');
   const [isAllCompleted, setIsAllCompleted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const completionHandledRef = React.useRef(false);
   const hasInitializedRef = React.useRef(false);
 
+  // Completion effect based on props
   React.useEffect(() => {
-    if (!user) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    const q = query(collection(db, 'users', user.uid, 'tasks'));
+    const allDone = tasks.length > 0 && tasks.every(t => t.completed);
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const taskList: Task[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.date === today) {
-          taskList.push({ id: doc.id, ...data } as Task);
-        }
-      });
-      
-      setTasks(taskList);
-      
-      const allDone = taskList.length > 0 && taskList.every(t => t.completed);
-      
-      if (allDone) {
-        if (!hasInitializedRef.current) {
-          hasInitializedRef.current = true;
-          completionHandledRef.current = true;
-          setIsAllCompleted(true);
-          setIsCollapsed(true); // Auto-collapse on load if already done
-        } else if (!completionHandledRef.current) {
-          completionHandledRef.current = true;
-          setIsAllCompleted(true);
-          setIsCollapsed(true); // Auto-collapse to give space to Nora
-          
-          fireConfetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#FCE4EC', '#FFAB91', '#FDEEF4']
-          });
-          
-          onAllCompleted();
-        }
-      } else {
+    if (allDone) {
+      if (!hasInitializedRef.current) {
         hasInitializedRef.current = true;
-        completionHandledRef.current = false;
-        setIsAllCompleted(false);
+        completionHandledRef.current = true;
+        setIsAllCompleted(true);
+        setIsCollapsed(true);
+      } else if (!completionHandledRef.current) {
+        completionHandledRef.current = true;
+        setIsAllCompleted(true);
+        setIsCollapsed(true);
+        
+        fireConfetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#FCE4EC', '#FFAB91', '#FDEEF4']
+        });
+        
+        const names = tasks.map(t => t.text).join(', ');
+        onAllCompleted(names);
       }
-    }, (error) => {
-      handleFirestoreError(error, 'list', `users/${user.uid}/tasks`);
-    });
-
-    return unsubscribe;
-  }, [user, onAllCompleted]);
+    } else {
+      hasInitializedRef.current = true;
+      completionHandledRef.current = false;
+      setIsAllCompleted(false);
+    }
+  }, [tasks, onAllCompleted]);
 
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
