@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // --- Connection Test ---
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // --- User Profiles ---
+    match /users/{userId} {
+      // Use allow read instead of list/get split for simplicity and reliability
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+                    && incoming().diff(resource.data).affectedKeys().hasOnly(['name', 'photoURL', 'onboardingCompleted', 'preferences', 'uid']);
+
+      function isValidUser(data) {
+        return data.keys().hasAll(['email', 'uid'])
+               && data.email is string && data.email.size() < 256
+               && data.uid == userId;
+      }
+
+      // --- Messages ---
+      match /messages/{messageId} {
+        allow get: if isOwner(userId) && isValidId(messageId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(messageId) && isValidMessage(incoming());
+        allow delete: if isOwner(userId);
+        
+        function isValidMessage(data) {
+          return data.userId == userId
+                 && data.text is string && data.text.size() < 5000
+                 && data.sender in ['user', 'nora'];
+        }
+      }
+
+      // --- Tasks ---
+      match /tasks/{taskId} {
+        allow get: if isOwner(userId) && isValidId(taskId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming());
+        allow update: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming());
+        allow delete: if isOwner(userId) && isValidId(taskId);
+
+        function isValidTask(data) {
+          return data.userId == userId
+                 && data.text is string && data.text.size() < 500
+                 && data.completed is bool;
+        }
+      }
+
+      // --- Brilliant Moments (Album) ---
+      match /moments/{momentId} {
+        allow get: if isOwner(userId) && isValidId(momentId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(momentId) && isValidMoment(incoming());
+        allow delete: if isOwner(userId) && isValidId(momentId);
+
+        function isValidMoment(data) {
+          return data.userId == userId
+                 && data.text is string && data.text.size() < 1000;
+        }
+      }
+    }
+  }
+}

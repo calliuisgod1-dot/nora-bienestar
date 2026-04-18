@@ -1,0 +1,21 @@
+{
+  "short_name": "Nora",
+  "name": "Nora - Itinerario de Bienestar",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/nora-wellness/192/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://picsum.photos/seed/nora-wellness/512/512",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#FAF7F2",
+  "background_color": "#FAF7F2",
+  "orientation": "portrait"
+}

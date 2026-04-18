@@ -1,0 +1,13 @@
+/app/applet/node_modules/web-push/src/vapid-helper.js:82
+    throw new Error('Vapid subject is not a valid URL. ' + subject);
+          ^
+
+Error: Vapid subject is not a valid URL. BDAJVGHHhXv5_Pa7HgZ8zBiGWgA6XFFrHvrbsgcNc30K-oy9zjm0DdIWc6erF5XS7aQMR6m00Di_2yJ9ysvfeiY
+    at Object.validateSubject (/app/applet/node_modules/web-push/src/vapid-helper.js:82:11)
+    at WebPushLib.setVapidDetails (/app/applet/node_modules/web-push/src/web-push-lib.js:59:17)
+    at <anonymous> (/app/applet/server.ts:25:11)
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.2

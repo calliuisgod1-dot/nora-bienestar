@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User preferences and metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "onboardingCompleted": { "type": "boolean" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A message sent in the chat",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "nora"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["userId", "text", "sender", "timestamp"]
+    },
+    "Task": {
+      "title": "Daily Task",
+      "description": "A task in the daily checklist",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "date": { "type": "string" }
+      },
+      "required": ["userId", "text", "completed", "date"]
+    },
+    "BrilliantMoment": {
+      "title": "Brilliant Moment",
+      "description": "A positive achievement to remember",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" }
+      },
+      "required": ["userId", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Store user profiles"
+    },
+    "/users/{userId}/messages": {
+      "schema": "Message",
+      "description": "Chat history for each user"
+    },
+    "/users/{userId}/tasks": {
+      "schema": "Task",
+      "description": "Daily tasks for each user"
+    },
+    "/users/{userId}/moments": {
+      "schema": "BrilliantMoment",
+      "description": "Album of earned miles"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-cream: #FDFBF7;
+  --color-brand-pink: #FFC2D1;
+  --color-brand-coral: #FF9B85;
+  --color-brand-soft: #F9F9F9;
+  --color-text-dark: #5A4A42;
+  --color-text-light: #8E7C74;
+  
+  --radius-lg: 25px;
+  --radius-xl: 30px;
+  --radius-xxl: 40px;
+}
+
+@layer base {
+  body {
+    @apply bg-[#F7F3F0] text-text-dark font-sans flex justify-center items-center;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-brand-pink rounded-full;
+}
+
+.geometric-shadow {
+  box-shadow: 0 10px 30px rgba(255, 155, 133, 0.1);
+}
+
+.app-border {
+  border: 8px solid #FFFFFF;
+}
+
+.chat-bubble-nora {
+  border-bottom-left-radius: 4px !important;
+}
+
+.chat-bubble-user {
+  border-bottom-right-radius: 4px !important;
+}

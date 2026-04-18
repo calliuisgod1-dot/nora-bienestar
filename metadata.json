@@ -1,0 +1,6 @@
+{
+  "name": "Nora - Itinerario de Bienestar",
+  "description": "Una asistente de bienestar empática para Karin, diseñada para acompañarla en su viaje interior con checklists diarios, chat de apoyo y análisis de bienestar.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["AI Chat", "Checklist de Bienestar", "Análisis de Imágenes", "Voz a Texto"]
+}
