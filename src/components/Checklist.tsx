@@ -30,11 +30,20 @@ export function Checklist({ onAllCompleted }: ChecklistProps) {
   React.useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, 'users', user.uid, 'tasks'));
+    // Filter tasks by today's date to avoid interference from past days
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(
+      collection(db, 'users', user.uid, 'tasks')
+    );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const taskList: Task[] = [];
       snapshot.forEach((doc) => {
-        taskList.push({ id: doc.id, ...doc.data() } as Task);
+        const data = doc.data();
+        // Manual filter for today for simplicity/reliability
+        if (data.date === today) {
+          taskList.push({ id: doc.id, ...data } as Task);
+        }
       });
       setTasks(taskList);
       
@@ -42,19 +51,22 @@ export function Checklist({ onAllCompleted }: ChecklistProps) {
       
       if (allDone) {
         if (!hasInitializedRef.current) {
-          // First load: set state but skip the celebration trigger
           hasInitializedRef.current = true;
           completionHandledRef.current = true;
           setIsAllCompleted(true);
         } else if (!completionHandledRef.current) {
+          // Double check to be absolutely sure before firing
           completionHandledRef.current = true;
           setIsAllCompleted(true);
+          
           fireConfetti({
             particleCount: 150,
             spread: 70,
             origin: { y: 0.6 },
             colors: ['#FCE4EC', '#FFAB91', '#FDEEF4']
           });
+          
+          // Use a small delay to ensure the UI has settled if needed
           onAllCompleted();
         }
       } else {

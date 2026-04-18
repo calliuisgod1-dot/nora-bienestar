@@ -156,27 +156,46 @@ function MainLayout() {
     speak("Hola Karin, ¿te gusta este tono de voz?");
   };
 
+  const isHandlingCompletion = useRef(false);
+
   const handleAllCompleted = useCallback(async () => {
-    if (!user) return;
+    if (!user || isHandlingCompletion.current) return;
+    
+    isHandlingCompletion.current = true;
     
     // Get the current tasks to include them in the prompt
+    const today = new Date().toISOString().split('T')[0];
     const tasksQuery = query(collection(db, 'users', user.uid, 'tasks'));
     const tasksSnapshot = await getDocs(tasksQuery).catch(e => handleFirestoreError(e, 'list', `users/${user.uid}/tasks`));
-    const taskNames = tasksSnapshot ? tasksSnapshot.docs.map(doc => doc.data().text).join(', ') : '';
+    
+    // Filter tasks for today manually for extra safety
+    const todayTasks = tasksSnapshot 
+      ? tasksSnapshot.docs
+          .map(doc => doc.data())
+          .filter(t => t.date === today)
+          .map(t => t.text)
+          .join(', ')
+      : '';
 
-    // Trigger local user message for immediate feedback
+    if (!todayTasks) {
+      isHandlingCompletion.current = false;
+      return;
+    }
+
     const messagePath = `users/${user.uid}/messages`;
-    await addDoc(collection(db, 'users', user.uid, 'messages'), {
-      uid: user.uid,
-      userId: user.uid,
-      text: "¡He completado todo mi checklist! ✨",
-      sender: 'user',
-      timestamp: serverTimestamp()
-    }).catch(e => handleFirestoreError(e, 'create', messagePath));
-
+    
     try {
-      // Automatic signal to Nora - more natural phrasing and including the specific tasks
-      const prompt = `¡Pana! He completado todas mis escalas técnicas de hoy: ${taskNames}. Me siento realizada. Dame ese cierre de bitácora especial con tu estilo, mencionando lo que logré.`;
+      // Trigger local user message for immediate feedback
+      await addDoc(collection(db, 'users', user.uid, 'messages'), {
+        uid: user.uid,
+        userId: user.uid,
+        text: "¡He completado todo mi checklist de hoy! ✨",
+        sender: 'user',
+        timestamp: serverTimestamp()
+      }).catch(e => handleFirestoreError(e, 'create', messagePath));
+
+      // Automatic signal to Nora
+      const prompt = `¡Pana! He completado todas mis escalas técnicas de hoy: ${todayTasks}. Me siento realizada. Dame ese cierre de bitácora especial con tu estilo, mencionando lo que logré.`;
       const noraResponse = await GeminiService.chat(prompt, [], undefined, currentMood || undefined);
       
       // Extract and save "Milla Ganada" if present
@@ -201,10 +220,13 @@ function MainLayout() {
         timestamp: serverTimestamp()
       }).catch(e => handleFirestoreError(e, 'create', messagePath));
 
-      // Special bitácora closing - Don't speak automatically as per user request
-      // speak(cleanResponse);
     } catch (error) {
       console.error("Error generating closing bitácora:", error);
+    } finally {
+      // Small cooldown before allowing another completion trigger
+      setTimeout(() => {
+        isHandlingCompletion.current = false;
+      }, 5000);
     }
   }, [user, currentMood]);
 
